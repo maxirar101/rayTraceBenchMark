@@ -1,0 +1,58 @@
+classdef (Abstract)abstractCollMap < abstractMap
+    %ABSTRACTCOLLMAP 衝突表面を含んだ決定論的なマップを定義することを責務とする
+    properties(Access = protected)
+        SurfIDDic    % 表面ID→surfaceの辞書
+        SurfTypeDic  % 表面ID→surfaceTypeの辞書
+        CollDet    % 衝突判定クラス
+    end
+
+    methods(Access = public)
+        function [isColl,collPos,collID] = calcCollision(obj,rays)
+            %CALCCOLLISION 与えられたレイがマップ内のどのsurfaceIDのどの位置で衝突しているか返す
+            arguments
+                obj     abstractCollMap % 自身
+                rays    (:,2,3) double  % 入力レイ
+            end
+            % 全平面を取得
+            surfaces = values(obj.SurfIDDic);
+
+            % 全平面とレイの衝突判定を実施
+            [isColl,collPos,surfIdx] = obj.CollDet.detect(rays,surfaces);
+
+            % 衝突したsurfaceのIDを取得
+            allID = keys(obj.SurfIDDic);
+            collID = cellfun(@(idx) allID(idx), surfIdx, 'UniformOutput', false);
+        end
+
+        function surfID = getAllSurfID(obj)
+            %GETALLSURFID すべての表面IDを返す
+            surfID = keys(obj.SurfIDDic);
+        end
+
+        function surface = getSurface(obj,surfID)
+            %GETSURFID 平面IDが与えられた際に該当surfaceを返す
+            arguments
+                obj     abstractCollMap
+                surfID  (1,:) uint64
+            end
+            if ~ismember(surfID,keys(obj.SurfIDDic))
+                error("collisionMap:InvalidID",...
+                    "存在しない平面IDが入力されました 入力IDは%dです",surfID)
+            end
+            surface = obj.SurfIDDic(surfID);
+        end
+
+        function surfT = getSurfType(obj,surfID)
+            %GETSURFACETYPE 平面IDが与えられた際に平面タイプを返す
+            arguments
+                obj     abstractCollMap
+                surfID  (1,:) uint64
+            end
+            if ~ismember(surfID,keys(obj.SurfIDDic))
+                error("collisionMap:InvalidID",...
+                    "存在しない平面IDが入力されました 入力IDは%dです",surfID)
+            end
+            surfT = obj.SurfTypeDic(surfID);        
+        end
+    end
+end
