@@ -1,0 +1,162 @@
+classdef polySurface < handle
+    %SURFACE 障害物平面の情報を保持することを責務とする
+    properties(Access = protected)
+        Normal      % 法線ベクトル(規格化済み)
+        Vertices    % 頂点座標[m]
+        OrthognalBase   % 正規直交基底リスト
+        ProjectPoly     % 正規直交基底の投影後のpolyshape
+    end
+
+    properties(Constant)
+        PrarellValue = 10^-6;   % 平行と判断する値
+    end
+
+    methods(Access = public)
+        function obj = polySurface(vertices)
+            %SURFACE このクラスのインスタンスを作成
+            arguments
+                vertices    (:,3) double    % 頂点座標
+            end
+            % プロパティに頂点を設定
+            obj.Vertices = vertices;
+
+            % 法線を計算&プロパティにセット
+            vec12 = vertices(1,:) - vertices(2,:);
+            vec32 = vertices(3,:) - vertices(2,:);
+            normal = cross(vec12,vec32);
+            obj.Normal = normal/norm(normal);
+
+            % 正規直交基底を計算
+            obj.OrthognalBase = zeros(2,3);
+            [~,minI] = min(abs(normal));
+            tmp = zeros(1,3);
+            tmp(minI) = 1;
+            base1 = cross(obj.Normal,tmp);
+            base2 = cross(obj.Normal,base1);
+            obj.OrthognalBase(1,:) = base1;
+            obj.OrthognalBase(2,:) = base2;
+
+            % 投影頂点を正規直交基底で計算
+            proVertices = zeros(numel(vertices(:,1)),2);
+            vertices2 = vertices - vertices(2,:);
+            proVertices(:,1) = vertices2 * base1';
+            proVertices(:,2) = vertices2 * base2';
+            obj.ProjectPoly = polyshape(proVertices);
+        end
+
+        function normal = getNormal(obj)
+            %GETNORMAL  平面の法線ベクトルを返す
+            normal = obj.Normal;
+        end
+
+        function vertices = getVertices(obj)
+            %GETVERTICES 平面の頂点ベクトルを返す
+            vertices = obj.Vertices;
+        end
+
+        function projectPoly = getProjectPoly(obj)
+            %GETPROJECTPOLY 頂点2を原点とする正規直交基底に投影後のpolyshapeを返す
+            projectPoly = obj.ProjectPoly;
+        end
+
+        function [base1,base2] = getOrthogonalBase(obj)
+            %GETORTHOGONALBASE 頂点2を原点とする平面の正規直交基底を返す
+            base1 = obj.OrthognalBase(1,:);
+            base2 = obj.OrthognalBase(2,:);
+        end
+
+        function [coef1,coef2] = calcProjectPos(obj,pos)
+            %CALCPROJECTPOS 与えられた3D位置を正規直交基底投影後の座標に変換する
+            arguments
+                obj     polySurface
+                pos     (:,3) double
+            end
+            % 正規直交基底を取得
+            [base1,base2] = obj.getOrthogonalBase();
+
+            % pos-点2を正規直交基底で変換
+            pos2 = pos - obj.Vertices(2,:);
+            coef1 = pos2 * base1';
+            coef2 = pos2 * base2';
+        end
+
+        function isSamePlane = isSamePlane(obj,pos)
+            %ISSAMEPLANE 与えられた点が同一平面内か判定する
+            arguments
+                obj     polySurface
+                pos     (:,3) double
+            end
+            % 初期値
+            isSamePlane = false(1,numel(pos(:,1)));
+
+            % 平面点2からのベクトルと法線ベクトルを内積する
+            vector = pos - obj.Vertices(2,:);
+            normal = obj.Normal;
+            dot = abs(vector * normal');
+
+            % 内積が一定値以下は同じ平面
+            isSamePlane = dot < obj.PrarellValue;
+        end
+
+        function isInPlane = isInPlane(obj,pos)
+            %ISINPLANE 与えられた点が平面内か判定する
+            arguments
+                obj     polySurface
+                pos     (:,3) double
+            end
+            % 初期値
+            isInPlane = false(1,numel(pos(:,1)));
+
+            % 同じ平面とならないインデックスを取得
+            idx = ~obj.isSamePlane(pos);
+
+            % 全インデックスが同一平面でない場合終了
+            if prod(idx) == 1
+                return
+            end            
+
+            % 正規直交基底ベクトルで残りの点を投影
+            [coef1,coef2] = obj.calcProjectPos(pos(~idx,:));
+
+            % 投影点が投影polyshape内に入るかチェック
+            pshape = obj.ProjectPoly();
+            isInPlane(~idx) = isinterior(pshape,coef1,coef2);
+        end
+
+        function reflectT = calcReflectType(obj,pos1,pos2)
+            %CALCREFLECTTYPE 与えられた2点が平面から見て反射か判定する
+            arguments
+                obj     polySurface
+                pos1    (:,3) double
+                pos2    (:,3) double
+            end
+            % pos1,pos2のサイズが一致しない場合エラー
+            if numel(pos1(:,1)) ~= numel(pos2(:,2))
+                error("polySurface:InvalidInputSize",...
+                    "pos1とpos2のサイズが一致しません")
+            end
+
+            % 同一平面を判定
+            pos1InPlane = obj.isInPlane(pos1);
+            pos2InPlane = obj.isInPlane(pos2);
+            samePlane = pos1InPlane * pos2InPlane;
+
+            % 符号付距離を計算
+            d1 = (pos1 - obj.Vertices(2,:))*obj.Normal';
+            d2 = (pos2 - obj.Vertices(2,:))*obj.Normal';
+
+            % 同方向か逆方向か計算
+            isReflect = sign(d1) == sign(d2);
+            isRefract = sign(d1) == -sign(d2);
+
+            % 優先順位を考慮して条件を作成
+            conditions = samePlane*3 + (isRefract & ~samePlane)*2 + (isReflect & ~samePlane)*1;
+            
+            % 条件に応じた値を作成
+            types = [reflectType.REFLECTIVE, reflectType.REFRACTIVE, reflectType.SAMEPLANE];
+            
+            % 返値をセット（条件が0の場合はREFLECTIVEになる）
+            reflectT = types(max(conditions, 1));
+        end
+    end
+end
