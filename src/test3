@@ -1,0 +1,321 @@
+classdef polySurfaceTest < matlab.unittest.TestCase
+
+    methods (TestClassSetup)
+        % テスト クラス全体の共有セットアップ
+        function surface = createXYSurface(testcase)
+            % polySurfaceセット
+            vetices = [ 0   0   1;...
+                        2   0   1;...
+                        2   2   1;...
+                        0   2   1];
+            surface = polySurface(vetices);
+        end
+
+        function surface = createYZSurface(testcase)
+            % polySurfaceセット
+            vetices = [ 1   0   0;...
+                        1   0   2;...
+                        1   4   2;...
+                        1   4   0];
+            surface = polySurface(vetices);
+        end
+
+        function surface = createXZSurface(testcase)
+            % polySurfaceセット
+            vetices = [ 0   1   0;...
+                        -3  1   0;...
+                        -3  1   2;...
+                        0   1   2];
+            surface = polySurface(vetices);
+        end
+    end
+
+    methods (TestMethodSetup)
+        % 各テストのセットアップ
+    end
+
+    methods (Test)
+        % テスト メソッド
+
+        function getNormalTest1(testcase)
+            % 法線ベクトルが正しく取得できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface;
+            
+            % 実行結果
+            actualValue = surface.getNormal;
+
+            % 期待値
+            expectValue = [0 0 -1];
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue,"RelTol",10^-10)
+        end
+
+        function getOrthogonalBaseNormalTest1(testcase)
+            % XY平面において正規直交基底ベクトルが正しく取得できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface;
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.getOrthogonalBase;
+
+            % 期待値
+            expectValue1 = [0 -1 0];
+            expectValue2 = [-1 0 0];
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function getOrthogonalBaseNormalTest2(testcase)
+            % YX平面において正規直交基底ベクトルが正しく取得できることを確認する
+            % テスト条件
+            surface = testcase.createYZSurface;
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.getOrthogonalBase;
+
+            % 期待値
+            expectValue1 = [0 0 1];
+            expectValue2 = [0 -1 0];
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function getOrthogonalBaseNormalTest3(testcase)
+            % XZ平面において正規直交基底ベクトルが正しく取得できることを確認する
+            % テスト条件
+            surface = testcase.createXZSurface;
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.getOrthogonalBase;
+
+            % 期待値
+            expectValue1 = [0 0 1];
+            expectValue2 = [-1 0 0];
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function calcProjectPosNormalTest1(testcase)
+            % XY平面において投影が正しく行われることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface;
+            pos = [1,1,1];
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.calcProjectPos(pos);
+
+            % 期待値
+            expectValue1 = -1;
+            expectValue2 = 1;
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function calcProjectPosNormalTest2(testcase)
+            % YZ平面において投影が正しく行われることを確認する
+            % テスト条件
+            surface = testcase.createYZSurface;
+            pos = [1,1,1];
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.calcProjectPos(pos);
+
+            % 期待値
+            expectValue1 = -1;
+            expectValue2 = -1;
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function calcProjectPosNormalTest3(testcase)
+            % XZ平面において投影が正しく行われることを確認する
+            % テスト条件
+            surface = testcase.createXZSurface;
+            pos = [1,1,1];
+
+            % 実行結果
+            [actualValue1,actualValue2] = surface.calcProjectPos(pos);
+
+            % 期待値
+            expectValue1 = 1;
+            expectValue2 = -4;
+
+            % テスト
+            testcase.verifyEqual(actualValue1,expectValue1,"RelTol",10^-10)
+            testcase.verifyEqual(actualValue2,expectValue2,"RelTol",10^-10)
+        end
+
+        function calcReflectTypeNormalTest1(testcase)
+            % XY平面において正しく反射が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface();
+            pos1 = [3 3 2];
+            pos2 = [-3 -3 2];
+
+            % 実行結果
+            actualValue = surface.calcReflectType(pos1,pos2);
+
+            % 期待値
+            expectValue = reflectType.REFLECTIVE;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest1(testcase)
+            % XY平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface();
+            pos = [1 1 2];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest2(testcase)
+            % XY平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface();
+            pos = [3 3 1];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest3(testcase)
+            % XY平面において正しく平面内が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXYSurface();
+            pos = [2 2 1];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = true;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest4(testcase)
+            % YZ平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createYZSurface;
+            pos = [2 1 3];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest5(testcase)
+            % YZ平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createYZSurface;
+            pos = [1 5 2];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end
+
+        function isInPlaneNormalTest6(testcase)
+            % YZ平面において正しく平面内が判定できることを確認する
+            % テスト条件
+            surface = testcase.createYZSurface;
+            pos = [1 4 2];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = true;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end        
+
+        function isInPlaneNormalTest7(testcase)
+            % XZ平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXZSurface;
+            pos = [-3 2 2];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end  
+
+        function isInPlaneNormalTest8(testcase)
+            % XZ平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXZSurface;
+            pos = [3 1 1];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = false;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end  
+
+        function isInPlaneNormalTest9(testcase)
+            % XZ平面において正しく平面外が判定できることを確認する
+            % テスト条件
+            surface = testcase.createXZSurface;
+            pos = [-3 1 2];
+
+            % 実行結果
+            actualValue = surface.isInPlane(pos);
+
+            % 期待値
+            expectValue = true;
+
+            % テスト
+            testcase.verifyEqual(actualValue,expectValue)
+        end  
+    end
+end
