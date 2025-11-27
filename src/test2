@@ -1,0 +1,98 @@
+classdef indoorCollMap < abstractCollMap
+    %INDOORCOLLMAP 屋内の衝突判定マップ※少なくとも屋内全体の形状はLOD1とする
+
+    properties(Access = protected)
+        Floor       % フロア全体
+        NFloor = 1; % フロア階数
+        Height      % 屋内高さ
+    end
+
+    methods(Access = public)
+        function obj = indoorCollMap(surfIDDic,surfTypeDic,collDet,floor,height)
+            %INDOORCOLLMAP このクラスのインスタンスを作成
+            arguments
+                surfIDDic   (1,1) dictionary
+                surfTypeDic (1,1) dictionary
+                collDet     (1,1) abstractCollDetector
+                floor       (1,1) polyshape
+                height      (1,1) double
+            end
+            % プロパティに代入
+            obj.SurfIDDic = surfIDDic;
+            obj.SurfTypeDic = surfTypeDic;
+            obj.CollDet = collDet;
+            obj.Floor = floor;
+            obj.Height = height;
+        end
+
+        function isIndoor = isIndoor(obj,pos)
+            %ISINDOOR 与えられた位置が屋内か判定する
+            arguments
+                obj     (1,:) indoorCollMap    % 自身
+                pos     (:,3) double           % 与えられた点
+            end
+            % 常にtrueを返す
+            isIndoor = true;
+        end
+
+        function inDistance = calcInDistance(obj,pos1,pos2)
+            %CALCINDISTANCE 与えられた二点の屋内距離を計算する
+            arguments
+                obj     (1,:) indoorCollMap
+                pos1    (:,3) double           % 与えられた点1（複数可）
+                pos2    (:,3) double           % 与えられた点2（複数可）
+            end
+            
+            % ベクトル化された距離計算
+            % pos1の各点とpos2の各点の差を計算
+            % permute と reshape を使って3次元配列を作成
+            diff = permute(pos2,[3,2,1]) - permute(pos1,[1,2,3]);
+            
+            % 各次元の差の二乗和の平方根を計算
+            inDistance = squeeze(sqrt(sum(diff.^2, 2)));
+            
+            % pos1またはpos2が1点のみの場合、適切な形状にする
+            if size(pos1,1) == 1 || size(pos2,1) == 1
+                inDistance = reshape(inDistance, size(pos1,1), size(pos2,1));
+            end
+        end
+
+        function isInMap = isInMap(obj,pos)
+            %ISINMAP 与えられた点がマップ内か判定する
+            arguments
+                obj (1,:) indoorCollMap
+                pos (:,3) double
+            end
+            % 二次元的に屋内か
+            isInMap2D = isinterior(obj.Area,pos(:,1),pos(:,2));
+
+            % 高さ的に屋内か
+            isInHeight = (0 <= pos(:,3) &&  pos(:,3) <= obj.Height);
+
+            % 上記の合成
+            isInMap = logical(isInMap2D .* isInHeight);
+        end
+
+        function nFloor = getNFloor(obj,pos)
+            %GETNFLOOR 常にプロパティを返す
+            nFloor = obj.NFloor;
+        end
+
+        function [minX,minY,maxX,maxY,obj] = getMinMaxXY(obj)
+            %GETMINMAXXY エリアの端を返す
+            % 頂点を取得
+            floor = obj.Floor;
+            vertices = floor.Vertices();
+
+            % 頂点の最小最大から返値を作成
+            minX = min(vertices(:,1));
+            maxX = max(vertices(:,1));
+            minY = min(vertices(:,2));
+            maxY = max(vertices(:,2));
+        end
+
+        function area = getArea(obj)
+            area = obj.Area;
+        end
+    end
+end
